@@ -40,6 +40,7 @@ def save_csv(df: pd.DataFrame, meta: Dict[str, Any], filename: str) -> None:
         # Write date and time as first metadata line (use from meta if provided, otherwise current)
         if "datetime" in meta_save:
             datetime_str = meta_save["datetime"]
+            del meta_save["datetime"]
         else:
             datetime_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         f.write(f"#{datetime_str}\n")
