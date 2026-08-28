@@ -28,6 +28,9 @@ class ScpiInstrument(VisaInstrument):
         super().__init__(addr)
 
         self.idn = idn
+    
+    def reset(self):
+        self.write("*RST")
 
     def check_idn(self):
         idn_response = self.query("*IDN?")
@@ -137,4 +140,37 @@ class MSO2024(ScpiInstrument):
         df["time"] = np.linspace(xzero, xzero + (xinc * len(df)), len(df))
 
         meta = {"xinc": xinc, "xzero": xzero}
+        return df, meta
+
+class K2425(ScpiInstrument):
+    """Class for the Keithley 2425 SMU."""
+    def get(self):
+        """Get the data currently in the output buffer.
+
+        The data is returned in a pandas DataFrame.
+        """
+        # Return absolute timestamps.
+        self.write("trace:tstamp:format absolute")
+        self.write("format:elements voltage,current,time")
+        # The RS232 interface only allows ASCII.
+        self.write("format:data ascii")
+
+        # A fetch will return the last measured readings.
+        # The format should be: voltage,current,time
+        readings = self.query("fetch?")
+        readings_array = readings.split(',')
+        voltage = map(float, readings_array[::3])
+        current = map(float, readings_array[1::3])
+        time = map(float, readings_array[2::3])
+
+        data = [list(i) for i in zip(*[voltage, current, time])]
+        df = pd.DataFrame(data, columns=["voltage", "current", "time"])
+
+        xinc = 0.0
+        if len(df) > 1:
+            xinc = df['time'].iloc[1] - df['time'].iloc[0]
+        xzero = df['time'].iloc[0]
+        
+        meta = {"xinc": xinc, "xzero": xzero}
+
         return df, meta
